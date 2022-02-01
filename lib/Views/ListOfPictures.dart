@@ -3,6 +3,7 @@ import 'package:astronomy_pictures/View%20Models/PicturesViewModel.dart';
 import 'package:astronomy_pictures/Views/singlePicture.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class ListOfPictures extends StatefulWidget {
   const ListOfPictures({Key? key}) : super(key: key);
@@ -12,8 +13,8 @@ class ListOfPictures extends StatefulWidget {
 }
 
 class _ListOfPicturesState extends State<ListOfPictures> {
-  final _picturesViewModel = PictureViewModel();
-  final searchController = TextEditingController();
+
+  ScrollController? _controller;
 
   TextStyle textStyle = const TextStyle(
     color: Colors.white,
@@ -22,8 +23,17 @@ class _ListOfPicturesState extends State<ListOfPictures> {
 
   @override
   initState() {
-    _picturesViewModel.checkConnection();
+    _controller = ScrollController();
+    _controller!.addListener(_scrollListener);
     super.initState();
+  }
+
+  _scrollListener() {
+    if (_controller!.offset >= _controller!.position.maxScrollExtent &&
+        !_controller!.position.outOfRange) {
+      debugPrint('reached the bottom!!');
+      Provider.of<PictureViewModel>(context,listen: false).fetchPictures(loadingExtra: true);
+    }
   }
 
   @override
@@ -35,54 +45,58 @@ class _ListOfPicturesState extends State<ListOfPictures> {
         backgroundColor: Colors.black,
         title: const Text('images'),
         centerTitle: true,
-        actions: [
-          IconButton(
-            onPressed: () {
-              _picturesViewModel.checkConnection();
-              setState(() {
-                /*This call will reload the page and the API will be called again*/
-              });
-            },
-            icon: const Icon(Icons.refresh_outlined),
-          ),
-        ],
       ),
       body: Center(
-        child: _picturesViewModel.connectionStatus == ConnectionStatus.connected
-            ? FutureBuilder<List<AstronomyPicture>>(
-                future: _picturesViewModel.fetchPictures(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
+        child: Padding(
+          padding: const EdgeInsets.all(2.0),
+          child: ListView(
+            // shrinkWrap: true,
+          //  physics: const NeverScrollableScrollPhysics(),
+            children: [
+
+             Container(height:30, color: Colors.green,child: const TextField()),
+              Consumer<PictureViewModel>(
+                builder: (context, model, _) {
+                  if (model.pictures.isEmpty) {
+                    return  Center(
                       child: CircularProgressIndicator(
-                        color: Colors.black,
+                        color: Colors.grey.shade700,
                       ),
                     );
-                  } else if (snapshot.connectionState == ConnectionState.done) {
-                    if (snapshot.hasData) {
-                      return ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: snapshot.data!.length,
-                        itemBuilder: (context, index) =>
-                            pictureCard(snapshot.data![index]),
-                      );
-                    } else {
-                      return somethingWentWrong();
-                    }
                   }
-
-                  return somethingWentWrong();
+                  return Container(
+                    margin: const EdgeInsets.all(5),
+                    child: ListView.builder(
+                      controller: _controller,
+                        shrinkWrap: true,
+                        physics: const ClampingScrollPhysics(),
+                        itemCount: model.pictures.length +1,
+                        itemBuilder: (context, index) =>
+                            index >= model.pictures.length
+                                ? _loadingWidget()
+                                : pictureCard(model.pictures[index])),
+                  );
                 },
-              )
-            : _picturesViewModel.connectionStatus ==
-                    ConnectionStatus.notConnected
-                ? somethingWentWrong()
-                : const Center(
-                    child: CircularProgressIndicator(
-                      color: Colors.black,
-                    ),
-                  ),
+              ),
+            ],
+          ),
+        ),
       ),
+    );
+  }
+
+  Widget _loadingWidget() {
+    return Consumer<PictureViewModel>(
+      builder: (context, model, _) {
+        if (model.isLoadingExtra) {
+          return const Padding(
+            padding:  EdgeInsets.only(top:10.0,bottom: 30.0),
+            child:  Center(child: Text('Loading...')),
+          );
+        }
+
+        return const SizedBox.shrink();
+      },
     );
   }
 
@@ -140,7 +154,7 @@ class _ListOfPicturesState extends State<ListOfPictures> {
                       padding: const EdgeInsets.all(1.0),
                     ),
                   ),
-                )
+                ),
               ],
             ),
           ),

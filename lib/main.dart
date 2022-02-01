@@ -1,4 +1,6 @@
+import 'package:astronomy_pictures/View%20Models/PicturesViewModel.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'Views/ListOfPictures.dart';
 
@@ -11,9 +13,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return  MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: ListOfPictures(),
+      home: ChangeNotifierProvider<PictureViewModel>(create:(_)=>PictureViewModel(),
+          child: const ListOfPictures(),),
     );
   }
 }
